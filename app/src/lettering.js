@@ -21,14 +21,18 @@ export function drawLettering(ctx, width, height, options) {
   // Calculate available space
   const marginX = width * 0.06;
   const maxTextWidth = width - marginX * 2;
-  const captionY = position === 'top' 
-    ? height * 0.14 
-    : height - height * 0.08;
-  const subtitleGap = height * 0.025;
   
-  // Draw caption (main text)
+  // Caption baseline positions
+  // Bottom: caption at 90% height, subtitle centered BELOW at 96%
+  // Top: caption at 10% height (baseline), subtitle centered BELOW at 16%
+  const captionY = position === 'top' 
+    ? height * 0.10  // baseline at 10% from top
+    : height * 0.90; // baseline at 90% from top (10% from bottom)
+  
+  // Draw caption (main text) first to measure its actual font size
+  let captionFontSize = 0;
   if (caption) {
-    drawTextLine(ctx, caption.toUpperCase(), width / 2, captionY, maxTextWidth, {
+    captionFontSize = drawTextLine(ctx, caption.toUpperCase(), width / 2, captionY, maxTextWidth, {
       gradient: letteringGradient,
       fontSizeRatio: 0.11,
       minFontSize: 28,
@@ -40,20 +44,29 @@ export function drawLettering(ctx, width, height, options) {
     }, height);
   }
   
-  // Draw subtitle (smaller text)
+  // Draw subtitle (smaller text) - clearly separated BELOW caption
   if (subtitle) {
+    // Subtitle is ~40% of caption size, letter-spaced
+    const subFontSizeRatio = 0.044; // ~40% of 0.11
+    const subMinFontSize = 14;
+    
+    // Position subtitle well below caption
+    // For bottom: subtitle baseline at 96% (6% gap from caption baseline at 90%)
+    // For top: subtitle baseline at 16% (6% gap from caption baseline at 10%)
     const subY = position === 'top' 
-      ? captionY + getFontSize(height * 0.11, caption.toUpperCase(), maxTextWidth, ctx) + subtitleGap
-      : captionY - subtitleGap;
+      ? height * 0.16
+      : height * 0.96;
+    
     drawTextLine(ctx, subtitle.toUpperCase(), width / 2, subY, maxTextWidth * 0.85, {
       gradient: letteringGradient,
-      fontSizeRatio: 0.045,
-      minFontSize: 14,
+      fontSizeRatio: subFontSizeRatio,
+      minFontSize: subMinFontSize,
       outlineWidth: 0.06,
       outlineColor: 'rgba(0, 0, 0, 0.85)',
       shadowBlur: 0.015,
       shadowColor: 'rgba(0, 0, 0, 0.5)',
       shadowOffsetY: 0.004,
+      letterSpacing: '0.15em', // Add letter spacing for subtitle
     }, height);
   }
   
@@ -71,6 +84,7 @@ function drawTextLine(ctx, text, cx, cy, maxWidth, opts, canvasHeight) {
     shadowBlur,
     shadowColor,
     shadowOffsetY,
+    letterSpacing = '0',
   } = opts;
   
   // Auto-fit font size
@@ -80,6 +94,12 @@ function drawTextLine(ctx, text, cx, cy, maxWidth, opts, canvasHeight) {
   while (ctx.measureText(text).width > maxWidth && fontSize > minFontSize) {
     fontSize -= 2;
     ctx.font = `bold ${fontSize}px ${FONT_STACK}`;
+  }
+  
+  // Apply letter spacing if specified (via text rendering workaround)
+  // Canvas doesn't support letter-spacing directly, so we render character by character
+  if (letterSpacing !== '0' && letterSpacing !== 0) {
+    return drawLetterSpacedText(ctx, text, cx, cy, fontSize, letterSpacing, opts);
   }
   
   // Shadow
@@ -98,15 +118,65 @@ function drawTextLine(ctx, text, cx, cy, maxWidth, opts, canvasHeight) {
   // Fill with gradient
   ctx.fillStyle = gradient;
   ctx.fillText(text, cx, cy);
+  
+  return fontSize;
 }
 
-/** Get the computed font size for a text (used for subtitle positioning). */
-function getFontSize(ratio, text, maxWidth, ctx) {
-  let size = Math.max(14, Math.floor(1080 * ratio)); // baseline from 1080
-  ctx.font = `bold ${size}px ${FONT_STACK}`;
-  while (ctx.measureText(text).width > maxWidth && size > 14) {
-    size -= 2;
-    ctx.font = `bold ${size}px ${FONT_STACK}`;
+/** Draw text with manual letter spacing. */
+function drawLetterSpacedText(ctx, text, cx, cy, fontSize, letterSpacing, opts) {
+  const {
+    gradient,
+    outlineWidth,
+    outlineColor,
+    shadowBlur,
+    shadowColor,
+    shadowOffsetY,
+  } = opts;
+  
+  // Parse letter spacing (em value)
+  const emValue = parseFloat(letterSpacing) * fontSize;
+  
+  // Measure total width with spacing
+  const chars = text.split('');
+  let totalWidth = 0;
+  const charWidths = [];
+  
+  for (const ch of chars) {
+    const metrics = ctx.measureText(ch);
+    charWidths.push(metrics.width);
+    totalWidth += metrics.width;
   }
-  return size;
+  
+  // Add letter spacing between characters (not after last)
+  totalWidth += emValue * (chars.length - 1);
+  
+  // Start position (centered)
+  let x = cx - totalWidth / 2;
+  
+  // Shadow
+  ctx.shadowColor = shadowColor;
+  ctx.shadowBlur = fontSize * shadowBlur;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = fontSize * shadowOffsetY;
+  
+  // Outline (stroke) - draw each char
+  ctx.strokeStyle = outlineColor;
+  ctx.lineWidth = fontSize * outlineWidth;
+  ctx.lineJoin = 'round';
+  ctx.miterLimit = 2;
+  
+  for (let i = 0; i < chars.length; i++) {
+    ctx.strokeText(chars[i], x, cy);
+    x += charWidths[i] + emValue;
+  }
+  
+  // Fill with gradient - draw each char
+  ctx.fillStyle = gradient;
+  x = cx - totalWidth / 2;
+  for (let i = 0; i < chars.length; i++) {
+    ctx.fillText(chars[i], x, cy);
+    x += charWidths[i] + emValue;
+  }
+  
+  return fontSize;
 }

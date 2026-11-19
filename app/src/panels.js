@@ -167,7 +167,7 @@ export class PanelManager {
     this.panels = [];
     this.selectedIndex = 0;
     this.layoutId = layoutId;
-    this.updateLayout(canvasWidth, canvasHeight);
+    this.updateLayout(layoutId, canvasWidth, canvasHeight);
   }
   
   updateLayout(layoutId, canvasWidth, canvasHeight) {

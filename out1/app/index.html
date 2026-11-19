@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vice Poster Studio</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<main class="app">
+  <!-- Left: Controls -->
+  <aside class="controls" role="region" aria-label="Controls">
+    <header class="controls-header">
+      <h1>Vice Poster Studio</h1>
+      <p class="tagline">GTA-style cover art maker</p>
+    </header>
+    
+    <!-- Photos Section -->
+    <section class="panel-section">
+      <h2>Photos</h2>
+      <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drop photos here or click to browse">
+        <input type="file" id="photo-input" accept="image/*" multiple hidden>
+        <span class="drop-text">Drop photos here or click</span>
+        <span class="drop-hint">Multiple files supported</span>
+      </div>
+      <div id="sample-buttons" class="sample-buttons" role="group" aria-label="Sample photos"></div>
+      <button id="apply-all-btn" type="button" class="btn btn-secondary" title="Apply selected panel's photo to all panels">Apply to All Panels</button>
+    </section>
+    
+    <!-- Layout Section -->
+    <section class="panel-section">
+      <h2>Layout</h2>
+      <select id="layout-select" aria-label="Panel layout"></select>
+    </section>
+    
+    <!-- Grade Section -->
+    <section class="panel-section">
+      <h2>Colour Grade</h2>
+      <select id="grade-select" aria-label="Colour grade"></select>
+      <div class="slider-row">
+        <label>Intensity <span id="intensity-value">75%</span></label>
+        <input type="range" id="intensity-slider" min="0" max="100" value="75" aria-label="Grade intensity">
+      </div>
+      <div class="toggles">
+        <label class="toggle"><input type="checkbox" id="vignette-check" checked> Vignette</label>
+        <label class="toggle"><input type="checkbox" id="grain-check"> Film Grain</label>
+      </div>
+    </section>
+    
+    <!-- Caption Section -->
+    <section class="panel-section">
+      <h2>Caption</h2>
+      <label>Main Text <input type="text" id="caption-input" maxlength="60" value="SUNSET HEIST" placeholder="Main caption"></label>
+      <label>Subtitle <input type="text" id="subtitle-input" maxlength="80" value="VICE CITY NIGHTS" placeholder="Optional subtitle"></label>
+      <label>Position <select id="caption-pos-select"><option value="bottom">Bottom</option><option value="top">Top</option></select></label>
+      <label class="toggle"><input type="checkbox" id="keyline-check" checked> Keyline Frame</label>
+    </section>
+    
+    <!-- Panel Adjust Section -->
+    <section class="panel-section">
+      <h2>Panel Adjust</h2>
+      <p class="hint">Click a panel to select, then drag to pan, wheel to zoom.</p>
+      <div class="slider-row">
+        <label>Zoom <span id="zoom-value">100%</span></label>
+        <input type="range" id="zoom-slider" min="1" max="4" step="0.05" value="1" aria-label="Panel zoom">
+      </div>
+      <div class="btn-row">
+        <button id="fit-btn" type="button" class="btn btn-sm" title="Fit (cover)">Fit</button>
+        <button id="fill-btn" type="button" class="btn btn-sm" title="Fill (2×)">Fill</button>
+      </div>
+    </section>
+    
+    <!-- Export Section -->
+    <section class="panel-section">
+      <h2>Export</h2>
+      <select id="size-select" aria-label="Export size"></select>
+      <button id="export-btn" type="button" class="btn btn-primary">Export PNG</button>
+    </section>
+    
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+  </aside>
+  
+  <!-- Right: Preview -->
+  <div class="preview-wrap">
+    <canvas id="preview" aria-label="Cover preview"></canvas>
+  </div>
+  
+  <!-- Full-size canvas for export and shot mode (direct child of body) -->
+  <canvas id="cover" aria-hidden="true"></canvas>
+</main>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

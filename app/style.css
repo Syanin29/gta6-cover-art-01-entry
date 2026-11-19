@@ -318,3 +318,44 @@ input[type="range"]::-moz-range-thumb {
   .controls { border-right: none; border-bottom: 1px solid var(--border); max-height: 50vh; }
   .preview-wrap { padding: 16px; }
 }
+
+/* ============ Shot Mode: Cover ============ */
+body.shot-cover .controls {
+  display: none !important;
+}
+body.shot-cover .app {
+  grid-template-columns: 1fr !important;
+}
+body.shot-cover .preview-wrap {
+  padding: 0 !important;
+}
+body.shot-cover #preview {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  display: block !important;
+}
+
+/* ============ Shot Mode: Editor ============ */
+body.shot-editor .controls {
+  display: none !important;
+}
+body.shot-editor .app {
+  grid-template-columns: 1fr !important;
+}
+body.shot-editor .preview-wrap {
+  padding: 0 !important;
+  background: var(--bg-elevated) !important;
+}
+body.shot-editor #preview {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  display: block !important;
+}

@@ -53,19 +53,7 @@ async function init() {
   const params = new URLSearchParams(location.search);
   const shot = params.get('shot');
   
-  if (shot) {
-    await runShot(shot, params, async (sampleUrl, caption) => {
-      const img = await loadImage(sampleUrl);
-      if (panelManager) {
-        panelManager.setAllImagesElement(img);
-      }
-      captionInput.value = caption;
-      redraw();
-    });
-    return;
-  }
-  
-  // Build UI
+  // Build UI options FIRST (for every mode)
   buildLayoutOptions();
   buildGradeOptions();
   buildSampleButtons();
@@ -83,6 +71,12 @@ async function init() {
   // Initial render
   redraw();
   updateStatus('Ready — drag photos, pick a layout, set a caption, export.');
+  
+  // NOW handle shot mode (after UI is built and panelManager exists)
+  if (shot) {
+    await runShot(shot, params, panelManager);
+    return;
+  }
 }
 
 function buildLayoutOptions() {
@@ -145,7 +139,7 @@ function setupEventListeners() {
     redraw();
   });
   
-  // Vignette / Grain toggles
+  // Vignette / Grain
   vignetteCheck.addEventListener('change', redraw);
   grainCheck.addEventListener('change', redraw);
   
@@ -155,93 +149,68 @@ function setupEventListeners() {
   captionPosSelect.addEventListener('change', redraw);
   keylineCheck.addEventListener('change', redraw);
   
-  // Zoom controls (for selected panel)
-  zoomSlider.addEventListener('input', e => {
-    const val = parseFloat(e.target.value);
-    zoomValue.textContent = `${Math.round(val * 100)}%`;
-    if (panelManager?.selected) {
-      panelManager.selected.setZoom(val);
-      redraw();
-    }
-  });
-  
+  // Zoom buttons
   fitBtn.addEventListener('click', () => {
     if (panelManager?.selected) {
       panelManager.selected.setZoom(1);
-      zoomSlider.value = 1;
-      zoomValue.textContent = '100%';
+      updateZoomSlider();
       redraw();
     }
   });
-  
   fillBtn.addEventListener('click', () => {
     if (panelManager?.selected) {
       panelManager.selected.setZoom(2);
-      zoomSlider.value = 2;
-      zoomValue.textContent = '200%';
+      updateZoomSlider();
       redraw();
     }
-  });
-  
-  // Apply current photo to all panels
-  applyAllBtn.addEventListener('click', () => {
-    if (panelManager?.selected?.image) {
-      panelManager.setAllImagesElement(panelManager.selected.image);
-      redraw();
-    }
-  });
-  
-  // Size selector
-  sizeSelect.addEventListener('change', e => {
-    const [w, h] = e.target.value.split('x').map(Number);
-    currentSize = { width: w, height: h };
-    panelManager.updateLayout(layoutSelect.value, w, h);
-    redraw();
   });
   
   // Export
   exportBtn.addEventListener('click', exportCover);
   
-  // Canvas interactions (pan/zoom)
-  setupCanvasInteraction();
+  // Size select
+  sizeSelect.addEventListener('change', e => {
+    const [w, h] = e.target.value.split('x').map(Number);
+    currentSize = { width: w, height: h };
+    panelManager.updateLayout(panelManager.layoutId, w, h);
+    redraw();
+  });
+  
+  // Apply to all
+  applyAllBtn.addEventListener('click', async () => {
+    if (!panelManager?.selected?.image) return;
+    await panelManager.setAllImagesElement(panelManager.selected.image);
+    redraw();
+    updateStatus('Applied selected photo to all panels.');
+  });
   
   // Sample buttons
-  sampleButtons.addEventListener('click', e => {
+  sampleButtons.addEventListener('click', async e => {
     const btn = e.target.closest('.sample-btn');
     if (!btn) return;
     const sampleId = btn.dataset.sample;
-    const img = loadedSampleImages.find((_, i) => SAMPLES[i].id === sampleId);
-    if (img && panelManager) {
+    const img = loadedSampleImages.find(s => {
+      // Find the sample image by checking the loaded samples
+      const sample = SAMPLES.find(smp => smp.id === sampleId);
+      return sample && s.src.includes(sample.url.split('/').pop());
+    });
+    if (img) {
       panelManager.setSelectedImageElement(img);
       redraw();
+      updateStatus(`Loaded sample: ${btn.title}`);
     }
   });
   
-  // Keyboard shortcuts
-  document.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT') return;
-    if (e.key === ' ') { e.preventDefault(); panelManager?.selectNext(); redraw(); }
-    if (e.key === 'ArrowUp') { if (panelManager?.selected) { panelManager.selected.pan(0, -0.02); redraw(); } }
-    if (e.key === 'ArrowDown') { if (panelManager?.selected) { panelManager.selected.pan(0, 0.02); redraw(); } }
-    if (e.key === 'ArrowLeft') { if (panelManager?.selected) { panelManager.selected.pan(-0.02, 0); redraw(); } }
-    if (e.key === 'ArrowRight') { if (panelManager?.selected) { panelManager.selected.pan(0.02, 0); redraw(); } }
-    if (e.key === '=' || e.key === '+') { zoomIn(); }
-    if (e.key === '-') { zoomOut(); }
-  });
-}
-
-function setupCanvasInteraction() {
-  const canvasEl = previewCanvas || canvas;
-  
+  // Canvas interactions (panel selection, pan, zoom)
+  const canvasEl = previewCanvas;
   canvasEl.addEventListener('pointerdown', e => {
     const rect = canvasEl.getBoundingClientRect();
     const nx = (e.clientX - rect.left) / rect.width;
     const ny = (e.clientY - rect.top) / rect.height;
     
-    const panelIdx = panelManager?.getPanelAt(nx, ny);
-    if (panelIdx !== undefined && panelIdx >= 0) {
+    const panelIdx = panelManager.getPanelAt(nx, ny);
+    if (panelIdx >= 0) {
       panelManager.select(panelIdx);
-      dragPanelIndex = panelIdx;
       isDragging = true;
       dragStart = { x: nx, y: ny };
       const panel = panelManager.panels[panelIdx];
@@ -258,7 +227,7 @@ function setupCanvasInteraction() {
     const nx = (e.clientX - rect.left) / rect.width;
     const ny = (e.clientY - rect.top) / rect.height;
     
-    const dx = (nx - dragStart.x) * 2; // Scale factor for sensitivity
+    const dx = (nx - dragStart.x) * 2;
     const dy = (ny - dragStart.y) * 2;
     
     const panel = panelManager.panels[dragPanelIndex];
@@ -304,16 +273,12 @@ async function handleFiles(event) {
   const files = Array.from(event.target.files).filter(f => f.type.startsWith('image/'));
   if (!files.length) return;
   
-  // Load first file immediately for selected panel
   const firstFile = files[0];
   await panelManager.setSelectedImage(firstFile);
   
-  // Load rest in background for "apply to all" or sample switching
-  // (We don't store them globally since they're file-specific)
-  
   redraw();
   updateStatus(`Loaded ${files.length} photo${files.length > 1 ? 's' : ''}.`);
-  photoInput.value = ''; // Allow re-selecting same file
+  photoInput.value = '';
 }
 
 function redraw() {

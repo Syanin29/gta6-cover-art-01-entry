@@ -1,8 +1,8 @@
 # gta6-cover-art-01-entry
 
-[![make.fun](https://img.shields.io/badge/make.fun-gta6--cover--art--01-ff6b35?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyTDEwLjUgOC41SDExVjE3aDJWOC41aDAuNUwxMiAyek0xMiAyMkwxMy41IDE1LjVIMlY2aDEwdi41SDNMMTIgMjJ6Ii8+PC9zdmc+)](https://make.fun/competitions/gta6-cover-art-01)
-[![Owner: Syanin29](https://img.shields.io/badge/owner-Syanin29-00ffff?style=for-the-badge)](https://make.fun/@Syanin29)
-[![Repo: gta6-cover-art-01-entry](https://img.shields.io/badge/repo-gta6--cover--art--01--entry-ff1493?style=for-the-badge)](https://github.com/Syanin29/gta6-cover-art-01-entry)
+[![make.fun · gta6-cover-art-01](https://make.fun/badge/gta6-cover-art-01.svg)](https://make.fun/bounty/gta6-cover-art-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
+[![rank](https://make.fun/badge/gta6-cover-art-01/Syanin29/gta6-cover-art-01-entry/rank.svg)](https://make.fun/bounty/gta6-cover-art-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
+[![reward](https://make.fun/badge/gta6-cover-art-01/Syanin29/gta6-cover-art-01-entry/reward.svg)](https://make.fun/bounty/gta6-cover-art-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
 
 **Vice Poster Studio** — an offline web app that turns your photos into striking GTA-style cover art with multi-panel layouts, bold caption lettering, and Vice City sunset/neon colour grades. Export as PNG in 1080×1080, 1080×1350, or 1920×1080.
 

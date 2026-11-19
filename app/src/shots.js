@@ -2,7 +2,8 @@
 
 import { loadSample, SAMPLES, loadImage } from './samples.js';
 import { getGrade } from './grades.js';
-import { drawLettering } from './lettering.js';
+import { renderCover, createPreloadedManager } from './cover.js';
+import { getLayoutPanels } from './layouts.js';
 
 const SIZE_PRESETS = {
   '1080x1080': { width: 1080, height: 1080 },
@@ -17,131 +18,136 @@ function parseSize(str) {
   return SIZE_PRESETS[str] ?? SIZE_PRESETS['1920x1080'];
 }
 
-export async function runShot(shot, query, loadCallback) {
-  const coverCanvas = document.getElementById('cover');
+export async function runShot(shot, query, panelManager) {
   const previewCanvas = document.getElementById('preview');
-  if (!coverCanvas || !previewCanvas) return;
+  if (!previewCanvas) return;
   
   if (shot === 'cover') {
-    await runCoverShot(previewCanvas, query, loadCallback);
+    await runCoverShot(previewCanvas, query);
   } else if (shot === 'editor') {
-    await runEditorShot(query, loadCallback);
+    await runEditorShot(query, panelManager, previewCanvas);
   }
   
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    window.__shotReady = true;
-  }));
+  // Two rAF after images loaded + render done
+  await new Promise(r => requestAnimationFrame(r));
+  await new Promise(r => requestAnimationFrame(r));
+  window.__shotReady = true;
 }
 
-async function runCoverShot(canvas, query, loadCallback) {
+async function runCoverShot(previewCanvas, query) {
+  const layoutId = query.get('layout') ?? 'trio';
   const gradeId = query.get('grade') ?? 'sunset';
   const size = parseSize(query.get('size'));
   const caption = query.get('caption') ?? 'SUNSET HEIST';
   const subtitle = query.get('subtitle') ?? '';
   const intensity = Math.min(100, Math.max(0, Number(query.get('intensity')))) / 100 || 0.75;
   const vignette = query.get('vignette') !== 'false';
+  const grain = query.get('grain') === 'true';
   const captionPosition = query.get('captionPos') ?? 'bottom';
   const keyline = query.get('keyline') !== 'false';
   
   const grade = getGrade(gradeId);
   
-  // Load images
-  const sampleImages = [];
-  for (const s of SAMPLES) {
-    const img = new Image();
-    img.src = s.url;
-    await new Promise((resolve, reject) => {
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error(`Failed to load ${s.url}`));
-      if (img.complete && img.naturalWidth > 0) resolve(img);
-    });
-    try { await img.decode(); } catch {}
-    sampleImages.push(img);
-  }
+  // Add shot-cover class to body for CSS styling
+  document.body.classList.add('shot-cover');
   
-  await loadCallback(SAMPLES[0].url, caption);
-  
-  // Set canvas to target size (internal resolution)
-  canvas.width = size.width;
-  canvas.height = size.height;
-  
-  // Manually hide controls and make canvas fill viewport
+  // Hide controls and make preview canvas fill viewport
   document.querySelector('.controls').style.display = 'none';
   document.querySelector('.app').style.gridTemplateColumns = '1fr';
   document.querySelector('.preview-wrap').style.padding = '0';
-  canvas.style.width = '100vw';
-  canvas.style.height = '100vh';
-  canvas.style.maxWidth = 'none';
-  canvas.style.maxHeight = 'none';
-  canvas.style.borderRadius = '0';
-  canvas.style.boxShadow = 'none';
+  previewCanvas.style.width = '100vw';
+  previewCanvas.style.height = '100vh';
+  previewCanvas.style.maxWidth = 'none';
+  previewCanvas.style.maxHeight = 'none';
+  previewCanvas.style.borderRadius = '0';
+  previewCanvas.style.boxShadow = 'none';
   
-  const ctx = canvas.getContext('2d');
+  // Create panel manager with the specified layout and full target size
+  const panelManager = await createPreloadedManager(layoutId, size.width, size.height);
   
-  // Clear with dark bg
-  ctx.fillStyle = '#0a0a12';
-  ctx.fillRect(0, 0, size.width, size.height);
+  // Set canvas to target size (internal resolution)
+  previewCanvas.width = size.width;
+  previewCanvas.height = size.height;
   
-  // Draw first image
-  const img = sampleImages[0];
-  if (img && img.complete && img.naturalWidth > 0) {
-    const scale = Math.max(size.width / img.naturalWidth, size.height / img.naturalHeight);
-    const dw = img.naturalWidth * scale;
-    const dh = img.naturalHeight * scale;
-    const dx = (size.width - dw) / 2;
-    const dy = (size.height - dh) / 2;
-    ctx.drawImage(img, dx, dy, dw, dh);
-  }
-  
-  // Grade overlay
-  if (grade.gradient) {
-    const prevOp = ctx.globalCompositeOperation;
-    ctx.globalCompositeOperation = grade.blendMode;
-    ctx.fillStyle = grade.gradient(ctx, size.width, size.height, intensity);
-    ctx.fillRect(0, 0, size.width, size.height);
-    ctx.globalCompositeOperation = prevOp;
-  }
-  
-  // Vignette
-  if (vignette && grade.vignetteColor) {
-    const v = ctx.createRadialGradient(
-      size.width * 0.5, size.height * 0.5, Math.min(size.width, size.height) * 0.15,
-      size.width * 0.5, size.height * 0.5, Math.max(size.width, size.height) * 0.75
-    );
-    v.addColorStop(0, 'rgba(0,0,0,0)');
-    v.addColorStop(1, grade.vignetteColor);
-    ctx.fillStyle = v;
-    ctx.fillRect(0, 0, size.width, size.height);
-  }
-  
-  // Lettering
-  if (caption || subtitle) {
-    drawLettering(ctx, size.width, size.height, {
-      caption,
-      subtitle,
-      position: captionPosition,
-      grade,
-      letteringGradient: grade.letteringGradient(ctx, size.width, size.height),
-    });
-  }
-  
-  // Keyline
-  if (keyline) {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-    ctx.lineWidth = Math.max(1, Math.min(size.width, size.height) * 0.003);
-    ctx.strokeRect(ctx.lineWidth/2, ctx.lineWidth/2, size.width - ctx.lineWidth, size.height - ctx.lineWidth);
-    ctx.restore();
-  }
-  
-  await new Promise(r => requestAnimationFrame(r));
-  await new Promise(r => requestAnimationFrame(r));
+  // Render using the real multi-panel renderCover
+  await renderCover(previewCanvas, panelManager, {
+    width: size.width,
+    height: size.height,
+    grade,
+    intensity,
+    vignette,
+    grain,
+    caption,
+    subtitle,
+    captionPosition,
+    keyline,
+  });
 }
 
-async function runEditorShot(query, loadCallback) {
+async function runEditorShot(query, panelManager, previewCanvas) {
   const sampleId = query.get('photo') ?? 'pier';
   const caption = query.get('caption') ?? 'Sunset Heist';
-  const sample = SAMPLES.find(s => s.id === sampleId) ?? SAMPLES[1];
-  await loadCallback(sample.url, caption);
+  const subtitle = query.get('subtitle') ?? 'VICE CITY NIGHTS';
+  const layoutId = query.get('layout') ?? 'trio';
+  const gradeId = query.get('grade') ?? 'sunset';
+  const sizeStr = query.get('size') ?? '1920x1080';
+  const intensity = Math.min(100, Math.max(0, Number(query.get('intensity')))) / 100 || 0.75;
+  const vignette = query.get('vignette') !== 'false';
+  const grain = query.get('grain') === 'true';
+  const captionPosition = query.get('captionPos') ?? 'bottom';
+  const keyline = query.get('keyline') !== 'false';
+  
+  // Apply query params to UI controls
+  document.getElementById('layout-select').value = layoutId;
+  document.getElementById('grade-select').value = gradeId;
+  document.getElementById('intensity-slider').value = Math.round(intensity * 100);
+  document.getElementById('intensity-value').textContent = `${Math.round(intensity * 100)}%`;
+  document.getElementById('vignette-check').checked = vignette;
+  document.getElementById('grain-check').checked = grain;
+  document.getElementById('caption-input').value = caption;
+  document.getElementById('subtitle-input').value = subtitle;
+  document.getElementById('caption-pos-select').value = captionPosition;
+  document.getElementById('keyline-check').checked = keyline;
+  document.getElementById('size-select').value = sizeStr;
+  
+  // Dispatch change events in the correct order so main.js handlers update state properly:
+  // 1. Size first (updates currentSize and panelManager layout)
+  // 2. Layout (updates panelManager layout with currentSize)
+  // 3. Grade (updates currentGrade)
+  document.getElementById('size-select').dispatchEvent(new Event('change'));
+  document.getElementById('layout-select').dispatchEvent(new Event('change'));
+  document.getElementById('grade-select').dispatchEvent(new Event('change'));
+  
+  // Load the sample image for the editor shot
+  const sampleImg = await loadSample(sampleId);
+  if (panelManager) {
+    panelManager.setSelectedImageElement(sampleImg);
+  }
+  
+  // Get current grade from main.js state (via the grade select)
+  const currentGrade = getGrade(gradeId);
+  
+  // Render to preview canvas at UI preview size (same as main.js redraw())
+  const previewW = Math.min(720, 1920); // currentSize.width from sizeStr default
+  const previewH = Math.round(previewW * 1080 / 1920); // currentSize.height
+  previewCanvas.width = previewW;
+  previewCanvas.height = previewH;
+  previewCanvas.style.width = `${previewW}px`;
+  previewCanvas.style.height = `${previewH}px`;
+  
+  await renderCover(previewCanvas, panelManager, {
+    width: previewW,
+    height: previewH,
+    grade: currentGrade,
+    intensity,
+    vignette,
+    grain,
+    caption,
+    subtitle,
+    captionPosition,
+    keyline,
+  });
+  
+  // Give time for images to load and render
   await new Promise(r => setTimeout(r, 500));
 }

@@ -29,6 +29,9 @@ for (const dir of ['app', 'screenshots']) {
   }
 }
 
+// Count screenshots copied
+const screenshotCount = readdirSync(join(out, 'screenshots')).length;
+
 // The scorer's own caps (reference/gate.json): only text_max_bytes shapes the bytes; the others refuse an entry the
 // scorer would refuse (more than 4 screenshots or one over 256 KiB; more than 993 files in app/ or 48 MiB of app
 // files, in all, or a path under app/ over 1000 bytes: app/ counts beside /output's own 1000-entry cap, its
@@ -46,3 +49,4 @@ writeFileSync(
 
 console.log(`✓ Copied app/ and screenshots/ to ${out}`);
 console.log(`✓ Wrote dossier.json`);
+console.log(`✓ Screenshots copied: ${screenshotCount}`);

@@ -25,6 +25,8 @@ const captionInput = document.getElementById('caption-input');
 const subtitleInput = document.getElementById('subtitle-input');
 const captionPosSelect = document.getElementById('caption-pos-select');
 const keylineCheck = document.getElementById('keyline-check');
+const popoutCheck = document.getElementById('popout-check');
+const calloutsCheck = document.getElementById('callouts-check');
 const zoomSlider = document.getElementById('zoom-slider');
 const zoomValue = document.getElementById('zoom-value');
 const fitBtn = document.getElementById('fit-btn');
@@ -143,66 +145,50 @@ function setupEventListeners() {
   vignetteCheck.addEventListener('change', redraw);
   grainCheck.addEventListener('change', redraw);
   
-  // Caption / Subtitle
+  // Caption / Subtitle / Position
   captionInput.addEventListener('input', redraw);
   subtitleInput.addEventListener('input', redraw);
   captionPosSelect.addEventListener('change', redraw);
+  
+  // Pop-out Hero / Callouts checkboxes
+  popoutCheck.addEventListener('change', redraw);
+  calloutsCheck.addEventListener('change', redraw);
+  
+  // Keyline
   keylineCheck.addEventListener('change', redraw);
   
-  // Zoom buttons
+  // Zoom
+  zoomSlider.addEventListener('input', e => {
+    if (panelManager?.selected) {
+      const zoom = parseFloat(e.target.value);
+      panelManager.selected.setZoom(zoom);
+      zoomSlider.value = zoom;
+      zoomValue.textContent = `${Math.round(zoom * 100)}%`;
+      redraw();
+    }
+  });
+  
+  // Fit / Fill buttons
   fitBtn.addEventListener('click', () => {
     if (panelManager?.selected) {
       panelManager.selected.setZoom(1);
+      panelManager.selected.offsetX = 0;
+      panelManager.selected.offsetY = 0;
       updateZoomSlider();
       redraw();
     }
   });
+  
   fillBtn.addEventListener('click', () => {
     if (panelManager?.selected) {
-      panelManager.selected.setZoom(2);
+      panelManager.selected.setZoom(panelManager.selected.scale * 2);
       updateZoomSlider();
       redraw();
     }
   });
   
-  // Export
-  exportBtn.addEventListener('click', exportCover);
-  
-  // Size select
-  sizeSelect.addEventListener('change', e => {
-    const [w, h] = e.target.value.split('x').map(Number);
-    currentSize = { width: w, height: h };
-    panelManager.updateLayout(panelManager.layoutId, w, h);
-    redraw();
-  });
-  
-  // Apply to all
-  applyAllBtn.addEventListener('click', async () => {
-    if (!panelManager?.selected?.image) return;
-    await panelManager.setAllImagesElement(panelManager.selected.image);
-    redraw();
-    updateStatus('Applied selected photo to all panels.');
-  });
-  
-  // Sample buttons
-  sampleButtons.addEventListener('click', async e => {
-    const btn = e.target.closest('.sample-btn');
-    if (!btn) return;
-    const sampleId = btn.dataset.sample;
-    const img = loadedSampleImages.find(s => {
-      // Find the sample image by checking the loaded samples
-      const sample = SAMPLES.find(smp => smp.id === sampleId);
-      return sample && s.src.includes(sample.url.split('/').pop());
-    });
-    if (img) {
-      panelManager.setSelectedImageElement(img);
-      redraw();
-      updateStatus(`Loaded sample: ${btn.title}`);
-    }
-  });
-  
-  // Canvas interactions (panel selection, pan, zoom)
-  const canvasEl = previewCanvas;
+  // Mouse selection on canvas
+  const canvasEl = document.getElementById('cover');
   canvasEl.addEventListener('pointerdown', e => {
     const rect = canvasEl.getBoundingClientRect();
     const nx = (e.clientX - rect.left) / rect.width;
@@ -295,6 +281,8 @@ function redraw() {
     subtitle: subtitleInput.value,
     captionPosition: captionPosSelect.value,
     keyline: keylineCheck.checked,
+    popout: popoutCheck.checked,
+    callouts: calloutsCheck.checked,
   };
   
   // Render to preview canvas (scaled down for UI)
@@ -331,6 +319,8 @@ async function exportCover() {
       subtitle: subtitleInput.value,
       captionPosition: captionPosSelect.value,
       keyline: keylineCheck.checked,
+      popout: popoutCheck.checked,
+      callouts: calloutsCheck.checked,
     };
     
     const blob = await exportCoverBlob(panelManager, options);

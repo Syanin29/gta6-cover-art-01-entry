@@ -15,6 +15,8 @@ export async function renderCover(canvas, panelManager, options) {
     subtitle = '',
     captionPosition = 'bottom',
     keyline = true,
+    popout = true,
+    callouts = true,
   } = options;
   
   // Set canvas size
@@ -33,6 +35,8 @@ export async function renderCover(canvas, panelManager, options) {
     subtitle,
     position: captionPosition,
     keyline,
+    popout,
+    callouts,
   });
 }
 
@@ -54,10 +58,15 @@ export async function createPreloadedManager(layoutId, width, height) {
   // Preload all samples
   const sampleImages = await Promise.all(SAMPLES.map(s => loadSample(s.id)));
   
-  // Distribute samples across panels
+  // Distribute samples across panels ONLY from the two photographic samples (boulevard, pier),
+  // alternating, with crop variation so repeats look different
   for (let i = 0; i < manager.panels.length; i++) {
-    const img = sampleImages[i % sampleImages.length];
+    const img = sampleImages[i % 2]; // only boulevard and pier, alternating
     manager.panels[i].setImageElement(img);
+    // Set panel scale and offset variation
+    manager.panels[i].scale = (i >= 2 ? 1.3 : 1.0);
+    manager.panels[i].offsetX = [0, 0, -0.18, 0.18][i % 4];
+    manager.panels[i].offsetY = [0, 0, 0.12, -0.12][i % 4];
   }
   
   return manager;

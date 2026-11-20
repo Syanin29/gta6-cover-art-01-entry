@@ -23,39 +23,49 @@ export function drawLettering(ctx, width, height, options) {
   const maxTextWidth = width - marginX * 2;
   
   // Caption baseline positions
-  // Bottom: caption at 90% height, subtitle centered BELOW at 96%
-  // Top: caption at 10% height (baseline), subtitle centered BELOW at 16%
+  // Bottom: caption at 88.5% height, subtitle at 94.5%
+  // Top: caption at 15.5% height (baseline), subtitle at 21.5% (baseline)
   const captionY = position === 'top' 
-    ? height * 0.10  // baseline at 10% from top
-    : height * 0.90; // baseline at 90% from top (10% from bottom)
+    ? height * 0.155  // baseline at 15.5% from top
+    : height * 0.885; // baseline at 88.5% from top (11.5% from bottom)
+  
+  const subtitleY = position === 'top'
+    ? height * 0.215
+    : height * 0.945;
+  
+  // Chrome gradient for the caption: vertical gradient across the text's own height
+  const chromeGradientStops = [
+    { offset: 0, color: '#f4fbff' },
+    { offset: 0.28, color: '#a8dcff' },
+    { offset: 0.45, color: '#ffffff' },
+    { offset: 0.58, color: '#3f7dff' },
+    { offset: 0.75, color: '#ff5da2' },
+    { offset: 1, color: '#ffb347' },
+  ];
   
   // Draw caption (main text) first to measure its actual font size
   let captionFontSize = 0;
   if (caption) {
-    captionFontSize = drawTextLine(ctx, caption.toUpperCase(), width / 2, captionY, maxTextWidth, {
-      gradient: letteringGradient,
-      fontSizeRatio: 0.11,
-      minFontSize: 28,
-      outlineWidth: 0.08,
-      outlineColor: 'rgba(0, 0, 0, 0.95)',
-      shadowBlur: 0.025,
-      shadowColor: 'rgba(0, 0, 0, 0.6)',
-      shadowOffsetY: 0.006,
-    }, height);
+    captionFontSize = drawCaptionWithChrome(ctx, caption.toUpperCase(), width / 2, captionY, maxTextWidth, {
+      fontSizeRatio: 0.13,
+      minFontSize: 32,
+      outlineWidth: 0.10,
+      chromeGradientStops,
+      canvasHeight: height,
+      position,
+    });
   }
   
   // Draw subtitle (smaller text) - clearly separated BELOW caption
   if (subtitle) {
-    // Subtitle is ~40% of caption size, letter-spaced
+    // Subtitle is ~40% of caption size
     const subFontSizeRatio = 0.044; // ~40% of 0.11
     const subMinFontSize = 14;
     
     // Position subtitle well below caption
-    // For bottom: subtitle baseline at 96% (6% gap from caption baseline at 90%)
-    // For top: subtitle baseline at 16% (6% gap from caption baseline at 10%)
     const subY = position === 'top' 
-      ? height * 0.16
-      : height * 0.96;
+      ? height * 0.215
+      : height * 0.945;
     
     drawTextLine(ctx, subtitle.toUpperCase(), width / 2, subY, maxTextWidth * 0.85, {
       gradient: letteringGradient,
@@ -71,6 +81,84 @@ export function drawLettering(ctx, width, height, options) {
   }
   
   ctx.restore();
+}
+
+/** Draw caption with chrome gradient + stripes effect. */
+function drawCaptionWithChrome(ctx, text, cx, cy, maxWidth, opts) {
+  const {
+    fontSizeRatio,
+    minFontSize,
+    outlineWidth,
+    chromeGradientStops,
+    canvasHeight,
+  } = opts;
+  
+  // Auto-fit font size
+  let fontSize = Math.max(minFontSize, Math.floor(canvasHeight * fontSizeRatio));
+  ctx.font = `bold ${fontSize}px ${FONT_STACK}`;
+  
+  // Reduce font size if text exceeds max width
+  while (ctx.measureText(text).width > maxWidth && fontSize > minFontSize) {
+    fontSize -= 2;
+    ctx.font = `bold ${fontSize}px ${FONT_STACK}`;
+  }
+  
+  // Create offscreen canvas for the glyph area
+  // width = ceil(measureText(text).width) + 8, height = ceil(fontSize * 1.3)
+  const glyphWidth = Math.ceil(ctx.measureText(text).width) + 8;
+  const glyphHeight = Math.ceil(fontSize * 1.3);
+  
+  const offscreen = document.createElement('canvas');
+  offscreen.width = glyphWidth;
+  offscreen.height = glyphHeight;
+  const offCtx = offscreen.getContext('2d');
+  
+  // Set up text rendering on offscreen (transparent, no fill initially)
+  offCtx.font = ctx.font;
+  offCtx.textAlign = 'left';
+  offCtx.textBaseline = 'alphabetic';
+  
+  // Vertical linear gradient from y=0 to y=fontSize with chromeGradientStops
+  const grad = offCtx.createLinearGradient(0, 0, 0, fontSize);
+  chromeGradientStops.forEach(stop => {
+    grad.addColorStop(stop.offset, stop.color);
+  });
+  
+  // Render the text on the offscreen canvas with the chrome gradient fill
+  offCtx.fillStyle = grad;
+  offCtx.fillText(text, 4, fontSize);
+  
+  // Stripes: offCtx.globalCompositeOperation = 'source-atop';
+  // fillStyle 'rgba(10,10,30,0.18)'; for (let y = 0; y < offscreen.height; y += 7) fillRect(0, y, offscreen.width, 3);
+  offCtx.globalCompositeOperation = 'source-atop';
+  offCtx.fillStyle = 'rgba(10, 10, 30, 0.18)';
+  
+  for (let y = 0; y < offscreen.height; y += 7) {
+    offCtx.fillRect(0, y, offscreen.width, 3);
+  }
+  
+  // Reset composite operation
+  offCtx.globalCompositeOperation = 'source-over';
+  
+  // Main canvas: shadow rgba(0,0,0,0.6), shadowBlur fontSize*0.02, shadowOffsetY fontSize*0.006;
+  // strokeText(text, cx, cy) with strokeStyle rgba(0,0,0,0.95), lineWidth fontSize * outlineWidth, lineJoin 'round';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+  ctx.shadowBlur = fontSize * 0.02;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = fontSize * 0.006;
+  
+  // Outline (stroke)
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
+  ctx.lineWidth = fontSize * outlineWidth;
+  ctx.lineJoin = 'round';
+  ctx.miterLimit = 2;
+  ctx.strokeText(text, cx, cy);
+  
+  // Draw the offscreen canvas onto the main canvas at the caption position
+  // at natural size (no scaling): drawImage(offscreen, cx - offscreen.width / 2, cy - fontSize)
+  ctx.drawImage(offscreen, cx - offscreen.width / 2, cy - fontSize);
+  
+  return fontSize;
 }
 
 /** Draw a single line of text with auto-fit, gradient fill, outline, and shadow. */
@@ -94,12 +182,6 @@ function drawTextLine(ctx, text, cx, cy, maxWidth, opts, canvasHeight) {
   while (ctx.measureText(text).width > maxWidth && fontSize > minFontSize) {
     fontSize -= 2;
     ctx.font = `bold ${fontSize}px ${FONT_STACK}`;
-  }
-  
-  // Apply letter spacing if specified (via text rendering workaround)
-  // Canvas doesn't support letter-spacing directly, so we render character by character
-  if (letterSpacing !== '0' && letterSpacing !== 0) {
-    return drawLetterSpacedText(ctx, text, cx, cy, fontSize, letterSpacing, opts);
   }
   
   // Shadow

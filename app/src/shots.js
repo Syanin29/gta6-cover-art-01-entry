@@ -45,6 +45,8 @@ async function runCoverShot(previewCanvas, query) {
   const grain = query.get('grain') === 'true';
   const captionPosition = query.get('captionPos') ?? 'bottom';
   const keyline = query.get('keyline') !== 'false';
+  const popout = query.get('popout') !== 'false';
+  const callouts = query.get('callouts') !== 'false';
   
   const grade = getGrade(gradeId);
   
@@ -81,6 +83,8 @@ async function runCoverShot(previewCanvas, query) {
     subtitle,
     captionPosition,
     keyline,
+    popout,
+    callouts,
   });
 }
 
@@ -96,6 +100,8 @@ async function runEditorShot(query, panelManager, previewCanvas) {
   const grain = query.get('grain') === 'true';
   const captionPosition = query.get('captionPos') ?? 'bottom';
   const keyline = query.get('keyline') !== 'false';
+  const popout = query.get('popout') !== 'false';
+  const callouts = query.get('callouts') !== 'false';
   
   // Apply query params to UI controls
   document.getElementById('layout-select').value = layoutId;
@@ -118,18 +124,26 @@ async function runEditorShot(query, panelManager, previewCanvas) {
   document.getElementById('layout-select').dispatchEvent(new Event('change'));
   document.getElementById('grade-select').dispatchEvent(new Event('change'));
   
-  // Load the sample image for the editor shot
-  const sampleImg = await loadSample(sampleId);
+  // Load the sample images and assign to panels with crop variation (same as cover.js)
+  const { loadSample, SAMPLES } = await import('./samples.js');
+  const sampleImages = await Promise.all(SAMPLES.map(s => loadSample(s.id)));
+  
   if (panelManager) {
-    panelManager.setSelectedImageElement(sampleImg);
+    for (let i = 0; i < panelManager.panels.length; i++) {
+      const img = sampleImages[i % 2]; // only boulevard and pier, alternating
+      panelManager.panels[i].setImageElement(img);
+      panelManager.panels[i].scale = (i >= 2 ? 1.3 : 1.0);
+      panelManager.panels[i].offsetX = [0, 0, -0.18, 0.18][i % 4];
+      panelManager.panels[i].offsetY = [0, 0, 0.12, -0.12][i % 4];
+    }
   }
   
   // Get current grade from main.js state (via the grade select)
   const currentGrade = getGrade(gradeId);
   
-  // Render to preview canvas at UI preview size (same as main.js redraw())
-  const previewW = Math.min(720, 1920); // currentSize.width from sizeStr default
-  const previewH = Math.round(previewW * 1080 / 1920); // currentSize.height
+  // Render to preview canvas at UI preview size
+  const previewW = Math.min(880, 1920); // previewW = 880 (was 720)
+  const previewH = Math.round(previewW * 1080 / 1920); // from the sizeStr aspect default
   previewCanvas.width = previewW;
   previewCanvas.height = previewH;
   previewCanvas.style.width = `${previewW}px`;
@@ -146,6 +160,8 @@ async function runEditorShot(query, panelManager, previewCanvas) {
     subtitle,
     captionPosition,
     keyline,
+    popout,
+    callouts,
   });
   
   // Give time for images to load and render

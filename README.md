@@ -9,7 +9,7 @@
 - **Photos**: Drag & drop or click to load multiple images; cycle through 4 built-in procedural samples (sunset boulevard, pier, sunset drive, neon alley) for instant results.
 - **Panels**: Four layout presets — Trio Columns, Hero + Stack, Quad Grid, Single — each panel independently crop/position via drag-to-pan and wheel-to-zoom.
 - **Grades**: Sunset Vice, Neon Nights, Golden Hour, Noir Mono — with intensity slider, vignette, and optional film grain.
-- **Lettering**: Bold condensed system-font caption + subtitle, auto-fit sizing, gradient fill per grade, thick dark outline, drop shadow; position top or bottom; dark gutter borders between panels; optional keyline frame.
+- **Lettering**: Bold condensed system-font caption + subtitle, auto-fit sizing, gradient fill per grade, thick dark outline, drop shadow; position top or bottom; dark gutter borders between panels; optional keyline frame; pop-out hero, chrome-striped lettering, panel callouts, and double frame.
 - **Export**: One-click PNG download at three social-ready sizes; live preview updates instantly.
 
 ## Run it

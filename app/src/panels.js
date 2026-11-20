@@ -366,6 +366,7 @@ export class PanelManager {
         // Inset about 1.5% of min dim
         const inset = minDim * 0.015;
         const chipX = px + inset;
+const chipY = py + inset;
         
         // Set font first: bold, size max(12, canvasHeight * 0.024), Impact stack
         const textFontSize = Math.max(12, canvasHeight * 0.024);

@@ -134,7 +134,7 @@ async function runEditorShot(query, panelManager, previewCanvas) {
       panelManager.panels[i].setImageElement(img);
       panelManager.panels[i].scale = (i >= 2 ? 1.3 : 1.0);
       panelManager.panels[i].offsetX = [0, 0, -0.18, 0.18][i % 4];
-      panelManager.panels[i].offsetY = [0, 0, 0.12, -0.12][i % 4];
+      panelManager.panels[i].offsetY = [0, 0, 0.12, 0.12][i % 4];
     }
   }
   
